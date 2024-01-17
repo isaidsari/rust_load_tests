@@ -12,12 +12,19 @@ const DEFAULT_THREADS: usize = 4;
 const DEFAULT_MEMORY_SIZE_GB: usize = 4;
 
 fn stress_memory(terminate_flag: Arc<AtomicBool>, memory: Arc<Mutex<Vec<u128>>>) {
-    while !terminate_flag.load(Ordering::Relaxed) {
-        // introduce some memory-intensive operations here
-        let mut memory = memory.lock().unwrap();
-        for element in memory.iter_mut() {
-            *element = 0;
+    // fill memory with zeros to allocate it
+    let mut memory = memory.lock().unwrap();
+    for element in memory.iter_mut() {
+        *element = 0;
+    }
+
+    loop {
+        if terminate_flag.load(Ordering::Relaxed) {
+            break;
         }
+
+        // delay to reduce CPU usage
+        thread::sleep(std::time::Duration::from_millis(100));
     }
 }
 
@@ -48,8 +55,12 @@ fn main() {
                     / threads
             ]));
 
-            println!("spawning thread {} size {}", i, memory.lock().unwrap().len());
-                
+            println!(
+                "spawning thread {} size {}",
+                i,
+                memory.lock().unwrap().len()
+            );
+
             thread::spawn(move || {
                 stress_memory(terminate_flag, memory);
             })
